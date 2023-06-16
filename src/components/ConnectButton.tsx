@@ -99,7 +99,21 @@ export default function ConnectButton() {
     const sendAmountWithDecimals = amount * Math.pow(10, decimals);
     const sendAmountInBN = web3.utils.toBN(sendAmountWithDecimals.toString());
 
-    await ctx.methods.transfer(addr, sendAmountInBN).send({ from: account });
+    const transferResult = await ctx.methods.transfer(addr, sendAmountInBN).send({ from: account });
+    const txn = transferResult.transactionHash;
+    fetch('http://localhost:3005/api/saveTransaction', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        sender: account,
+        receiver: addr,
+        amount: sendAmountInBN,
+        txn,
+      }),
+    });
+
   }, [account, library]);
 
   const sendAction = useCallback(async () => {
@@ -124,6 +138,19 @@ export default function ConnectButton() {
             if (error) {
               return;
             }
+
+            fetch('http://localhost:3005/api/saveTransaction', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                sender: account,
+                receiver: recieverAdd,
+                amount: sendAmount,
+                txn: hash, // The transaction hash from the sendTransaction callback
+              }),
+            });
 
             console.log(`Transaction data: ${transaction?.input}`);
           });
