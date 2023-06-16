@@ -20,6 +20,9 @@ import { injected } from "../config/wallets";
 import abi from "./abi.json";
 import { AbiItem } from "web3-utils";
 
+
+
+
 declare global {
   interface Window {
     ethereum: any;
@@ -69,52 +72,75 @@ export default function ConnectButton() {
         status: "error",
       });
     }
-    
+
     const web3 = new Web3(library.provider);
     var block = await web3.eth.getBlock("latest");
     setGasLimit(block.gasLimit);
-    
+
     const gasPrice = await web3.eth.getGasPrice();
     setGasFee(toGWei(web3, gasPrice.toString()));
 
     onOpen();
   }
 
-  const sendBaby = useCallback(async () => {
+  const sendBaby = useCallback(async (addr: string, amount: number) => {   // due to async and we are using useState using useState values are causing errors sometimes so I just passed values.
     const web3 = new Web3(library.provider);
     const ctx = new web3.eth.Contract(
       abi as AbiItem[],
-      "0xc748673057861a797275CD8A068AbB95A902e8de"
+      "0x75014115adf8E7ad4462D13698b87F0cB15d1067" // Ive added my new token called MTK because earlier token's abi was not valid
     );
+    // await ctx.methods.approve(account, sendAmount).call();   WE DONT NEED APPROVE FUNCTION HERE, USER CAN DIRECTLY USE TRANSFER FUNCTION HERE
 
-    await ctx.methods.approve(account, sendAmount).call();
-    await ctx.methods.transfer(recieverAdd, sendAmount).send();
+    // if there is no decimals() function
+    const sendAmountInWei = web3.utils.toWei(sendAmount.toString(), 'ether');
+
+    // if there is decimals() function in the smart contract:
+    const decimals = await ctx.methods.decimals().call();
+    const sendAmountWithDecimals = amount * Math.pow(10, decimals);
+    const sendAmountInBN = web3.utils.toBN(sendAmountWithDecimals.toString());
+
+    await ctx.methods.transfer(addr, sendAmountInBN).send({ from: account });
   }, [account, library]);
 
   const sendAction = useCallback(async () => {
-    const web3 = new Web3(library.provider);
 
-    const txParams : any = {
-      from: account,
-      to: recieverAdd,
+    if (mode === "BNB") {
+      const web3 = new Web3(library.provider);
 
-      value: Web3.utils.toWei(sendAmount.toString(), "ether"),
-    };
-    console.log(txParams); 
-    await web3.eth.sendTransaction(txParams, (error : any, hash : any) => {
-      if (error) {
-        console.error(error);
-      } else {
-        console.log(`Transaction hash: ${hash}`);
-        web3.eth.getTransaction(hash, (error, transaction) => {
-          if (error) {
-            return;
-          }
+      const txParams: any = {
+        from: account,
+        to: recieverAdd,
 
-          console.log(`Transaction data: ${transaction?.input}`);
-        });
-      }
-    })
+        value: Web3.utils.toWei(sendAmount.toString(), "ether"),
+      };
+
+      console.log(txParams);
+      await web3.eth.sendTransaction(txParams, (error: any, hash: any) => {
+        if (error) {
+          console.error(error);
+        } else {
+          console.log(`Transaction hash: ${hash}`);
+          web3.eth.getTransaction(hash, (error, transaction) => {
+            if (error) {
+              return;
+            }
+
+            console.log(`Transaction data: ${transaction?.input}`);
+          });
+        }
+      })
+
+    } else if (mode === "BabyDoge") {
+      console.log("called", sendAmount, recieverAdd)
+      sendBaby(recieverAdd, sendAmount);
+    } else {
+      return toast({
+        description: "Invalid Token",
+        status: "error",
+      });
+    }
+
+
     onClose();
     valueload();
   }, [account, library, recieverAdd, sendAmount]);
