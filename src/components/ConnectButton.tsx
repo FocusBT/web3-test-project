@@ -101,7 +101,7 @@ export default function ConnectButton() {
 
     const transferResult = await ctx.methods.transfer(addr, sendAmountInBN).send({ from: account });
     const txn = transferResult.transactionHash;
-    fetch('http://localhost:3005/api/saveTransaction', {
+    fetch('http://localhost:5000/api/saveTransaction', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -109,10 +109,12 @@ export default function ConnectButton() {
       body: JSON.stringify({
         sender: account,
         receiver: addr,
-        amount: sendAmountInBN,
+        amount: amount,
         txn,
       }),
-    });
+    }).then(response => response.json())
+      .then(data => console.log(data))
+      .catch(err => console.error('Failed to save transaction data:', err));
 
   }, [account, library]);
 
@@ -139,7 +141,7 @@ export default function ConnectButton() {
               return;
             }
 
-            fetch('http://localhost:3005/api/saveTransaction', {
+            fetch('http://localhost:5000/api/saveTransaction', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -148,9 +150,11 @@ export default function ConnectButton() {
                 sender: account,
                 receiver: recieverAdd,
                 amount: sendAmount,
-                txn: hash, // The transaction hash from the sendTransaction callback
+                txn: hash,
               }),
-            });
+            }).then(response => response.json())
+              .then(data => console.log(data))
+              .catch(err => console.error('Failed to save transaction data:', err));
 
             console.log(`Transaction data: ${transaction?.input}`);
           });
@@ -199,7 +203,7 @@ export default function ConnectButton() {
     const web3 = new Web3(library.provider);
     const ctx = new web3.eth.Contract(
       abi as AbiItem[],
-      "0xc748673057861a797275CD8A068AbB95A902e8de"
+      "0x75014115adf8E7ad4462D13698b87F0cB15d1067"
     );
     console.log(ctx);
     if (account) {
@@ -209,10 +213,10 @@ export default function ConnectButton() {
       const gasPrice = await web3.eth.getGasPrice();
       setGasFee(gasPrice);
 
-
-      // const value1 = await ctx.methods.balanceOf(account).call({gasPrice: Number(gasPrice) * 100});
-      // console.log('[baby amount]', value1)
-      // setBabyBalance(value1);
+      const decimals = await ctx.methods.decimals().call();
+      const balance = await ctx.methods.balanceOf(account).call();
+      const value1 = Number(balance) / Math.pow(10, decimals);
+      setBabyBalance(value1.toFixed(5));
     }
   }, [account, library]);
 
